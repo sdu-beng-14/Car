@@ -11,7 +11,7 @@
 //#include <time.h>
 // octo code
 //long double counter=0;
-//long double rpm=0;
+//long double rpm=0; 
 //int holes=0;
 int main(void)
 {
@@ -97,7 +97,3 @@ ISR (INT0_vect)
 {
 printf("%s.val+=1%c%c%c","page0.val1",255,255,255);
 }
-
-
-
-testssssss
