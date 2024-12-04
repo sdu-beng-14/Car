@@ -8,46 +8,42 @@
 #include <util/delay.h> //here the delay functions are found
 #include "usart.h"
 #include <avr/interrupt.h>
-#include <time.h>
-// octo code
-//long double counter=0;
-//long double rpm=0;
-//int holes=0;
 int main(void)
 {
 	
 	char readBuffer[100];
 	uart_init();//initialize communication with PC - debugging
 	io_redirect();//redirect printf function to uart, so text will be shown on PC
-	//octo code
-	//clock_t t = clock();
-	//clock_t d=0;
-	/*
-	DDRD &= ~(1 << DDD2); //clearing the D2 pin
-	PORTD |= (1 << PORTD2); //turn on the pull up
-	EICRA |= (1 << ISC00); // set INT0 to trigger on any change
-	EIMSK |= (1 << INT0); // Turns on interrupt for INT0
-	sei();
+	//opto code
+	TCCR1B = ( 1<< ICNC1) | (1 << ICES1) | (1 << CS12) | ( 1 << CS10);
+	TCCR1A= 0x00;
+	TCCR1B= 0xC5;
+	DDRB &= ~0x01;
+	PORTB |= 0x01;
+	//
 
-	DDRC |= (1 << PC0);
-	DDRC &= ~(1 <<PC1);
-	PORTC |=(1 << PC0);
-	PORTC &= ~(1 << PC1);
-	*/
+	DDRB |= (1 <<PB1);
+	PORTB |= (1 << PB1);
+	DDRB |= (1 <<PB2);
+	PORTB |= (1 << PB2);
+	DDRB &= ~(1 <<PB4);
+	PORTB &= ~(1 << PB4);
+	
 	DDRD |= (1 << PD6); // sets PD6 as an output pin
 	DDRD |= (1 << PD5); //sets PD5 as an output pin
 	TCCR0A |= 0xA3; // sets fast pwn non inverting mode on Oc0A (which is for PD6) and Oc0B (which is for PD5)
 	TCCR0B |= 0x05; // sets prescaler to 1024 for Timer0
-	//OCR0A = 0;  
-    //OCR0B = 0; 
+	OCR0A = 0;  
+    OCR0B = 0; 
 	printf("page 0%c%c%c",255,255,255);//init at 9600 baud.
 	_delay_ms(20);
 	uint32_t readValue = 1;
     while (1) 
     {
-		//octo code
-		//d=clock();
-
+		//opto code
+		if (PINB & (1 << PB0)){
+			printf("page0.va1.val=%d%c%c%c", 1, 255,255,255);
+		}
 		//printf("get %s.val%c%c%c","page0.n0",255,255,255);	//sends "get page0.n0.val"	
 		int typeExpected = 0;
 	
@@ -86,16 +82,11 @@ int main(void)
 				}
 		}		
 		//printf("page0.n0.val=%d%c%c%c", 2*(int)readValue, 255,255,255);
-		// octo code
+		// opto code
 		// add some alogrithim here cause the speed can't be 255m/s with octo
 		OCR0A = (int)readValue;
-		OCR0B = (int)readValue;  
-		//_delay_ms(1);		
+		OCR0B = (int)readValue;
+		//_delay_ms(100);
+		_delay_ms(1);		
     }
 }
-/*
-ISR (INT0_vect)
-{
-	printf("%s.val+=1%c%c%c","page0.val1",255,255,255);
-}
-*/
