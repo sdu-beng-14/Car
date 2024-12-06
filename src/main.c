@@ -8,7 +8,8 @@
 #include <util/delay.h> //here the delay functions are found
 #include "usart.h"
 #include <avr/interrupt.h>
-const int Number_Variables=6;
+const int Number_Variables=6; // Number of variables sent by the nextion
+const int Tire_Length=0.1954; //distance around a tire, hence we can calculate the distance travelled by 1 rps 
 int main(void)
 {
 	//Distance,Time and Reversal status 
@@ -100,6 +101,15 @@ int main(void)
 		}else{
 			if(temp_varLocation==1){
 				counter--;
+				for(int i=0; i<counter;i++){
+					printf("page0.n0.val=%d%c%c%c", HugeQueuer[0][i], 255,255,255);
+					printf("page0.n1.val=%d%c%c%c", HugeQueuer[1][i], 255,255,255);
+					printf("page0.c0.val=%d%c%c%c", HugeQueuer[2][i], 255,255,255);
+					printf("covx page0.n0.val,page0.MetersTxt.txt,0,0%c%c%c",255,255,255);
+  					printf("covx page0.n1.val,page0.TimeTxt.txt,0,0%c%c%c",255,255,255);
+					printf("covx page0.c0.val,page0.ReverseTxt.txt,0,0%c%c%c",255,255,255);
+					printf("page0.tm0.en=%d%c%c%c",1,255,255,255);
+				}
 			}else if(temp_varLocation==2){
 				counter=0;
 			}else if(temp_varLocation==0){
@@ -107,9 +117,16 @@ int main(void)
 				for(int i=0; i<counter; i++){
 					printf("page 1%c%c%c",255,255,255);
 					printf("page1.n3.val=%d%c%c%c", i, 255,255,255);
+					printf("page1.TimeRunning.val=%d%c%c%c",HugeQueuer[1][i],255,255,255);
+					int tempD=HugeQueuer[0][i]-Tire_Length*rotations_done;
+
 					// add some more globblobity bop here for the other value changes
+					
+				}
+				for(int i=0; i<counter; i++){
 					printf("page 2%c%c%c",255,255,255);
 					// add some globblobity bop here for page 2
+					_delay_ms(5000); // reading delay time
 				}
 			}
 		}
