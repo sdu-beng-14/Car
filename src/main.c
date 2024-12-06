@@ -8,9 +8,20 @@
 #include <util/delay.h> //here the delay functions are found
 #include "usart.h"
 #include <avr/interrupt.h>
+const int Number_Variables=6;
 int main(void)
 {
-	
+	//Distance,Time and Reversal status 
+	int Distance[69];
+	int Time[69];
+	int Reversal[69];
+	int counter=0;
+	int *HugeQueuer[3];
+
+	HugeQueuer[0]=Distance;
+	HugeQueuer[1]=Time;
+	HugeQueuer[2]=Reversal;
+
 	char readBuffer[100];
 	uart_init();//initialize communication with PC - debugging
 	io_redirect();//redirect printf function to uart, so text will be shown on PC
@@ -80,13 +91,31 @@ int main(void)
 					scanf("%c", &readBuffer[i]);
 					continue;
 				}
-		}		
-		//printf("page0.n0.val=%d%c%c%c", 2*(int)readValue, 255,255,255);
+		}
+		// Algorithm to figure out which variable it came from
+		int temp_varLocation=(int)readValue%Number_Variables;
+		int temp_varMagnitude=((int)readValue-temp_varLocation)/Number_Variables;
+		if (temp_varLocation>2){
+			HugeQueuer[temp_varLocation-3][counter]=temp_varMagnitude;
+		}else{
+			if(temp_varLocation==1){
+				counter--;
+			}else if(temp_varLocation==2){
+				counter=0;
+			}else if(temp_varLocation==0){
+				//Algorithm for executing the queues
+				for(int i=0; i<counter; i++){
+					printf("page 1%c%c%c",255,255,255);
+					printf("page1.n3.val=%d%c%c%c", i, 255,255,255);
+					// add some more globblobity bop here for the other value changes
+					printf("page 2%c%c%c",255,255,255);
+					// add some globblobity bop here for page 2
+				}
+			}
+		}
 		// opto code
 		// add some alogrithim here cause the speed can't be 255m/s with octo
 		OCR0A = (int)readValue;
 		OCR0B = (int)readValue;
-		//_delay_ms(100);
-		_delay_ms(1);		
     }
 }
