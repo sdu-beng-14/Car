@@ -54,7 +54,7 @@ int main(void)
     {
 		//opto code
 		if (PINB & (1 << PB0)){
-			printf("page0.va1.val=%d%c%c%c", 1, 255,255,255);
+			printf("page1.rotationGuard.val=%d%c%c%c", 1, 255,255,255);
 		}
 		//printf("get %s.val%c%c%c","page0.n0",255,255,255);	//sends "get page0.n0.val"	
 		int typeExpected = 0;
@@ -118,7 +118,7 @@ int main(void)
 					printf("page 1%c%c%c",255,255,255);
 					printf("page1.n3.val=%d%c%c%c", i, 255,255,255);
 					printf("page1.TimeRunning.val=%d%c%c%c",HugeQueuer[1][i],255,255,255);
-					int tempD=HugeQueuer[0][i]-Tire_Length*rotations_done;
+					printf("page1.DistanceMax.val=%d%c%c%c",HugeQueuer[0][i],255,255,255);
 
 					// add some more globblobity bop here for the other value changes
 					
