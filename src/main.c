@@ -114,17 +114,30 @@ int main(void)
 				counter=0;
 			}else if(temp_varLocation==0){
 				//Algorithm for executing the queues
+				printf("page 1%c%c%c",255,255,255);
+
+				int DistanceElapsed[69];
+				int TimeElapsed[69];
+				int Rotations[69];
+
+				int* HugeReader[3];
+				int HugeReader[0]=DistanceElapsed;
+				int HugeReader[1]=TimeElapsed;
+				int HugeReader[2]=Rotations;
 				for(int i=0; i<counter; i++){
-					printf("page 1%c%c%c",255,255,255);
 					printf("page1.n3.val=%d%c%c%c", i, 255,255,255);
 					printf("page1.TimeRunning.val=%d%c%c%c",HugeQueuer[1][i],255,255,255);
 					printf("page1.DistanceMax.val=%d%c%c%c",HugeQueuer[0][i],255,255,255);
-
 					// add some more globblobity bop here for the other value changes
+					//rn a brake is when it's 0
 					
 				}
+
 				for(int i=0; i<counter; i++){
-					printf("page 2%c%c%c",255,255,255);
+					printf("page2.n3.val=%d%c%c%c", i, 255,255,255);
+					printf("page2.n0.val=%d%c%c%c",HugeReader[0][i],255,255,255);
+					printf("page2.n4.val=%d%c%c%c",HugeReader[1][i],255,255,255);
+					printf("page2.n5.val=%d%c%c%c",HugeReader[2][i],255,255,255);
 					// add some globblobity bop here for page 2
 					_delay_ms(5000); // reading delay time
 				}
