@@ -10,6 +10,7 @@
 #include <avr/interrupt.h>
 const int Number_Variables=6; // Number of variables sent by the nextion
 const int Tire_Length=0.1954; //distance around a tire, hence we can calculate the distance travelled by 1 rps 
+//uint32_t Reader(char *readBuffer){};
 int main(void)
 {
 	//Distance,Time and Reversal status 
@@ -48,7 +49,6 @@ int main(void)
 	OCR0A = 0;  
     OCR0B = 0; 
 	printf("page 0%c%c%c",255,255,255);//init at 9600 baud.
-	_delay_ms(20);
 	uint32_t readValue = 1;
     while (1) 
     {
@@ -124,11 +124,20 @@ int main(void)
 				int HugeReader[0]=DistanceElapsed;
 				int HugeReader[1]=TimeElapsed;
 				int HugeReader[2]=Rotations;
+
+				int success=0;
+
 				for(int i=0; i<counter; i++){
+					success=0;
 					printf("page1.n3.val=%d%c%c%c", i, 255,255,255);
 					printf("page1.TimeRunning.val=%d%c%c%c",HugeQueuer[1][i],255,255,255);
 					printf("page1.DistanceMax.val=%d%c%c%c",HugeQueuer[0][i],255,255,255);
 					// add some more globblobity bop here for the other value changes
+					while(!success){
+
+						OCR0A = (int)readValue;
+						OCR0B = (int)readValue;
+					}
 					//rn a brake is when it's 0
 					
 				}
@@ -149,3 +158,8 @@ int main(void)
 		OCR0B = (int)readValue;
     }
 }
+/*
+uint32_t Reader(char *readBuffer){
+
+}
+*/
