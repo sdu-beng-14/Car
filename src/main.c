@@ -149,7 +149,9 @@ int main(void)
 							}
 						}
 					}
-					tempVars[3]=0,0,0;
+					for(int i=0; i<6; i++){
+						tempVars[i]=0;
+					}
 					old=0;
 				}
 				printf("page 2%c%c%c",255,255,255);
