@@ -82,6 +82,8 @@ int main(void)
 			}else if(temp_varLocation==0){
 				//Algorithm for executing the queues
 				printf("page 1%c%c%c",255,255,255);
+				printf("page1.SecondTimer.en=%d%c%c%c",1,255,255,255);
+				printf("page1.tm0.en=%d%c%c%c",1,255,255,255);
 				int duty_cycle=0;
 				int *HugeReader[3];
 				HugeReader[0]=DistanceElapsed;
