@@ -72,18 +72,24 @@ int main(void)
 					printf("page0.n0.val=%d%c%c%c", HugeQueuer[0][i], 255,255,255);
 					printf("page0.n1.val=%d%c%c%c", HugeQueuer[1][i], 255,255,255);
 					printf("page0.c0.val=%d%c%c%c", HugeQueuer[2][i], 255,255,255);
+					//Nextion is cooking
+					/*
 					printf("covx page0.n0.val,page0.MetersTxt.txt,0,0%c%c%c",255,255,255);
   					printf("covx page0.n1.val,page0.TimeTxt.txt,0,0%c%c%c",255,255,255);
 					printf("covx page0.c0.val,page0.ReverseTxt.txt,0,0%c%c%c",255,255,255);
+					*/
 					printf("page0.tm0.en=%d%c%c%c",1,255,255,255);
 				}
 			}else if(temp_varLocation==2){
 				counter=0;
 			}else if(temp_varLocation==0){
 				//Algorithm for executing the queues
+				//Nextion cooking
+				/*
 				printf("page 1%c%c%c",255,255,255);
 				printf("page1.SecondTimer.en=%d%c%c%c",1,255,255,255);
 				printf("page1.tm0.en=%d%c%c%c",1,255,255,255);
+				*/
 				int duty_cycle=0;
 				int *HugeReader[3];
 				HugeReader[0]=DistanceElapsed;
@@ -164,9 +170,9 @@ int main(void)
 					printf("page2.n5.val=%d%c%c%c",HugeReader[2][i],255,255,255);
 					// success globbity goob kinda sussy wussy but ye
 					if (HugeQueuer[3][i]){
-						printf("page2.t5.txt=Success!%c%c%c",255,255,255);
+						printf("page2.t5.txt=%s%c%c%c","Success!",255,255,255);
 					}else{
-						printf("page2.t5.txt=Failure!%c%c%c",255,255,255);
+						printf("page2.t5.txt=%s%c%c%c","Failure!",255,255,255);
 					}
 					_delay_ms(5000); // reading delay time
 				}
