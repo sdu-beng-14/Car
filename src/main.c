@@ -81,7 +81,7 @@ int main(void)
 				counter=0;
 			}else if(temp_varLocation==0){
 				//Algorithm for executing the queues
-				printf("page page1%c%c%c",255,255,255);
+				printf("page 1%c%c%c",255,255,255);
 				int duty_cycle=0;
 				int *HugeReader[3];
 				HugeReader[0]=DistanceElapsed;
@@ -152,7 +152,7 @@ int main(void)
 					tempVars[3]=0,0,0;
 					old=0;
 				}
-				printf("page page2%c%c%c",255,255,255);
+				printf("page 2%c%c%c",255,255,255);
 				for(int i=0; i<counter; i++){
 					printf("page2.n3.val=%d%c%c%c", i, 255,255,255);
 					printf("page2.n0.val=%d%c%c%c",HugeReader[0][i],255,255,255);
