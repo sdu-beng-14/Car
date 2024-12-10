@@ -10,14 +10,15 @@
 #include <avr/interrupt.h>
 const int Number_Variables=9; // Number of variables sent by the nextion
 const double Tire_Length=0.1954; //distance around a tire, hence we can calculate the distance travelled by 1 rps 
+const int amount_space=20;
 uint32_t Reader(char *readBuffer);
 int main(void)
 {
 	//Distance,Time and Reversal status 
-	int Distance[69];
-	int Time[69];
-	int Reversal[69];
-	int success[69];
+	int Distance[amount_space];
+	int Time[amount_space];
+	int Reversal[amount_space];
+	int success[2];
 	int counter=0;
 	int *HugeQueuer[4];
 
@@ -26,9 +27,9 @@ int main(void)
 	HugeQueuer[2]=Reversal;
 	HugeQueuer[3]=success;
 
-	int DistanceElapsed[69];
-	int TimeElapsed[69];
-	int Rotations[69];
+	int DistanceElapsed[amount_space];
+	int TimeElapsed[amount_space];
+	int Rotations[amount_space];
 	
 	char readBuffer[100];
 	uart_init();//initialize communication with PC - debugging
@@ -55,7 +56,7 @@ int main(void)
 	OCR0A = 0;  
     OCR0B = 0; 
 	printf("page 0%c%c%c",255,255,255);//init at 9600 baud.
-	uint32_t readValue = 0;
+	uint32_t readValue = -1;
     while (1) 
     {
 		//printf("get %s.val%c%c%c","page0.n0",255,255,255);	//sends "get page0.n0.val"	
@@ -65,6 +66,9 @@ int main(void)
 		int temp_varMagnitude=((int)readValue-temp_varLocation)/Number_Variables;
 		if (temp_varLocation>2 && temp_varLocation<6){
 			HugeQueuer[temp_varLocation-3][counter]=temp_varMagnitude;
+			if(temp_varLocation==5 && HugeQueuer[5][counter]!=temp_varMagnitude){
+				counter++;
+			}
 		}else{
 			if(temp_varLocation==1){
 				counter--;
@@ -183,7 +187,7 @@ int main(void)
 
 uint32_t Reader(char *readBuffer){
 
-	uint32_t readValue = 0;
+	uint32_t readValue = -1;
 	int typeExpected = 0;
 
 	for(int i = 0; i<8;i++)
