@@ -8,29 +8,33 @@
 #include <util/delay.h> //here the delay functions are found
 #include "usart.h"
 #include <avr/interrupt.h>
-const int Number_Variables=9; // Number of variables sent by the nextion
+const int Number_Variables=6; // Number of variables sent by the nextion
 const double Tire_Length=0.1954; //distance around a tire, hence we can calculate the distance travelled by 1 rps 
-const int amount_space=20;
-uint32_t Reader(char *readBuffer);
+const int amount_space=2;
 int main(void)
 {
 	//Distance,Time and Reversal status 
 	int Distance[amount_space];
 	int Time[amount_space];
 	int Reversal[amount_space];
-	int success[2];
+	int success[amount_space];
 	int counter=0;
 	int *HugeQueuer[4];
+	int lastread=1;
 
 	HugeQueuer[0]=Distance;
 	HugeQueuer[1]=Time;
 	HugeQueuer[2]=Reversal;
 	HugeQueuer[3]=success;
 
-	int DistanceElapsed[amount_space];
-	int TimeElapsed[amount_space];
-	int Rotations[amount_space];
-	
+	int duty_cycle=0;
+	double current_speed=0;
+	double desired_speed=0;
+	long int rotations=0;
+	long int temp_rotations=0;
+
+	int guard=0;
+
 	char readBuffer[100];
 	uart_init();//initialize communication with PC - debugging
 	io_redirect();//redirect printf function to uart, so text will be shown on PC
@@ -56,170 +60,112 @@ int main(void)
 	OCR0A = 0;  
     OCR0B = 0; 
 	printf("page 0%c%c%c",255,255,255);//init at 9600 baud.
-	uint32_t readValue = -1;
+	_delay_ms(20);
+	uint32_t readValue = 1;
     while (1) 
     {
+		//opto code
+		if (PINB & (1 << PB0)){
+			printf("page1.rotationGuard.val=%d%c%c%c", 1, 255,255,255);
+		}
+		//printf("get %s.val%c%c%c","page0.n0",255,255,255);	//sends "get page0.n0.val"	
+		int typeExpected = 0;
+	
+			for(int i = 0; i<8;i++)
+			{
+				scanf("%c", &readBuffer[i]);
+				if(readBuffer[i] == 0x71)//Expect number string
+				{
+					typeExpected = NUMBER_STRING;
+					readBuffer[0] = 0x71;//Move indicator to front, just to keep the nice format
+					break;
+				}
+			}
+			if(typeExpected == NUMBER_STRING)
+			{
+				for(int i = 1; i<8; i++)
+				{
+					scanf("%c", &readBuffer[i]);
+				}
+
+				if(readBuffer[0] == 0x71 && readBuffer[5] == 0xFF && readBuffer[6] == 0xFF && readBuffer[7] == 0xFF)//This is a complete number return
+				{
+					readValue = readBuffer[1] | (readBuffer[2] << 8) | (readBuffer[3] << 16)| (readBuffer[4] << 24);
+				}
+			}
+		
+		for(int i = 0; i<7; i++)
+		{
+				scanf("%c", &readBuffer[i]);
+				if(readBuffer[i] == 0x1A)//some error occurred - retrieve the 0xFF commands and start over
+				{
+					scanf("%c", &readBuffer[i]);
+					scanf("%c", &readBuffer[i]);
+					scanf("%c", &readBuffer[i]);
+					continue;
+				}
+		}		
 		//printf("get %s.val%c%c%c","page0.n0",255,255,255);	//sends "get page0.n0.val"	
 		// Algorithm to figure out which variable it came from
-		readValue=Reader(readBuffer);
+
 		int temp_varLocation=(int)readValue%Number_Variables;
 		int temp_varMagnitude=((int)readValue-temp_varLocation)/Number_Variables;
-		if (temp_varLocation>2 && temp_varLocation<6){
-			HugeQueuer[temp_varLocation-3][counter]=temp_varMagnitude;
-			if(temp_varLocation==5 && HugeQueuer[5][counter]!=temp_varMagnitude){
-				counter++;
+		if ((int)readValue!=lastread){
+			printf("page1.va2.val=%d%c%c%c",1,255,255,255);
+			lastread=(int)readValue;
+		}
+		if (temp_varLocation<6 && guard==0 && temp_varLocation>1){
+			HugeQueuer[temp_varLocation-2][counter]=temp_varMagnitude;
+			if(temp_varLocation==2){
+				guard=1;
 			}
-		}else{
-			if(temp_varLocation==1){
-				counter--;
-				for(int i=0; i<counter;i++){
-					printf("page0.n0.val=%d%c%c%c", HugeQueuer[0][i], 255,255,255);
-					printf("page0.n1.val=%d%c%c%c", HugeQueuer[1][i], 255,255,255);
-					printf("page0.c0.val=%d%c%c%c", HugeQueuer[2][i], 255,255,255);
-					//Nextion is cooking
-					/*
-					printf("covx page0.n0.val,page0.MetersTxt.txt,0,0%c%c%c",255,255,255);
-  					printf("covx page0.n1.val,page0.TimeTxt.txt,0,0%c%c%c",255,255,255);
-					printf("covx page0.c0.val,page0.ReverseTxt.txt,0,0%c%c%c",255,255,255);
-					*/
-					printf("page0.tm0.en=%d%c%c%c",1,255,255,255);
-				}
-			}else if(temp_varLocation==2){
-				counter=0;
-			}else if(temp_varLocation==0){
-				//Algorithm for executing the queues
-				//Nextion cooking
-				/*
-				printf("page 1%c%c%c",255,255,255);
-				printf("page1.SecondTimer.en=%d%c%c%c",1,255,255,255);
-				printf("page1.tm0.en=%d%c%c%c",1,255,255,255);
-				*/
-				int duty_cycle=0;
-				int *HugeReader[3];
-				HugeReader[0]=DistanceElapsed;
-				HugeReader[1]=TimeElapsed;
-				HugeReader[2]=Rotations;
+		}else if(temp_varLocation==5){
+			HugeQueuer[1][counter]=HugeQueuer[1][counter]-1;
+			printf("page1.n5.val=%d%c%c%c",(rotations-temp_rotations),255,255,255);
+			temp_rotations=rotations;
+			printf("page1.numGuard.val=%d%c%c%c",1,255,255,255);
+		}
+		HugeQueuer[0][counter]=(int)(rotations*Tire_Length);
 
-				int success=0;
+		printf("page1.n0.val=%d%c%c%c",HugeQueuer[0][counter],255,255,255);
+		printf("page1.n4.val=%d%c%c%c",HugeQueuer[1][counter],255,255,255);
 
-				int tempVars[6]={0,0,0,0,0,0};
-				int old=0;
-
-				int time_left=0;
-				int distance_left=0;
-				double current_speed=0;
-				double desired_speed=0;
+		current_speed=(rotations-temp_rotations)*Tire_Length;
+		desired_speed=HugeQueuer[0][counter]/HugeQueuer[1][counter];
+		duty_cycle = (int)((1-(current_speed/desired_speed))*255)+duty_cycle;
+		
+		OCR0A = duty_cycle;
+		OCR0B = duty_cycle;
+		if (duty_cycle>255){
+			duty_cycle=255;
+		}else if(duty_cycle<0){
+			//this code depends on our breaking system, rn no reversing motor goes off
+			duty_cycle=0;
+			//shitty code below, makes it go to the next section cause im lazy
+			HugeQueuer[3][counter]=1;
+			counter++;
+			guard=0;
+			if(abs(HugeQueuer[0][counter])<1 && abs(HugeQueuer[1][counter])<1){
+				HugeQueuer[3][counter]=1;
+			}else{
+				HugeQueuer[3][counter]=0;
+			}
+		}
+		if (counter==2){
+			printf("page 2%c%c%c",255,255,255);
 				for(int i=0; i<counter; i++){
-					success=0;
-					printf("page1.n3.val=%d%c%c%c", i, 255,255,255);
-					printf("page1.TimeRunning.val=%d%c%c%c",HugeQueuer[1][i],255,255,255);
-					printf("page1.DistanceMax.val=%d%c%c%c",HugeQueuer[0][i],255,255,255);
-					// unsure if globbity goob missing so double check
-					while(!success){
-						OCR0A = duty_cycle;
-						OCR0B = duty_cycle;
-						if (PINB & (1 << PB0)){
-							printf("page1.rotationGuard.val=%d%c%c%c", 1, 255,255,255);
-						}
-						readValue=Reader(readBuffer);
-						int temp_varLocation=(int)readValue%Number_Variables;
-						int temp_varMagnitude=((int)readValue-temp_varLocation)/Number_Variables;
-						if (5<temp_varLocation && temp_varLocation<9){
-							HugeReader[temp_varLocation-6][i]=temp_varMagnitude;
-							if (old%2==0){
-								tempVars[temp_varLocation-6]=temp_varMagnitude;
-							}else{
-								tempVars[temp_varLocation-3]=temp_varMagnitude;
-							}
-							if(temp_varLocation==8){
-								old++;
-							}
-						}
-						if(temp_varLocation==8){
-							time_left=HugeQueuer[1][i]-HugeReader[1][i];
-							distance_left=HugeReader[0][i]-HugeReader[0][i];
-							desired_speed=distance_left/time_left;
-							if (old%2==0)
-							{
-								current_speed=(HugeReader[2][i]-tempVars[5])*Tire_Length/(HugeReader[1][i]-tempVars[4]);
-							}else{
-								current_speed=(HugeReader[2][i]-tempVars[2])*Tire_Length/(HugeReader[1][i]-tempVars[1]);
-							}
-							duty_cycle = (int)((1-(current_speed/desired_speed))*255)+duty_cycle;
-							if (duty_cycle>255){
-								duty_cycle=255;
-							}else if(duty_cycle<0){
-								//this code depends on our breaking system, rn no reversing motor goes off
-								duty_cycle=0;
-								//shitty code below, makes it go to the next section cause im lazy
-								success=1;
-								if(abs(HugeQueuer[0][i]-HugeReader[0][i])<1 && abs(HugeQueuer[1][i]-HugeReader[1][i])<1){
-									HugeQueuer[3][i]=1;
-								}else{
-									HugeQueuer[3][i]=0;
-								}
-							}
-						}
-					}
-					for(int i=0; i<6; i++){
-						tempVars[i]=0;
-					}
-					old=0;
+				printf("page2.n3.val=%d%c%c%c", i, 255,255,255);
+				printf("page2.n0.val=%d%c%c%c",HugeQueuer[0][i],255,255,255);
+				printf("page2.n4.val=%d%c%c%c",HugeQueuer[1][i],255,255,255);
+				printf("page2.n5.val=%d%c%c%c",HugeQueuer[2][i],255,255,255);
+				// success globbity goob kinda sussy wussy but ye
+				if (HugeQueuer[3][i]){
+					printf("page2.t5.txt=%s%c%c%c","Success!",255,255,255);
+				}else{
+					printf("page2.t5.txt=%s%c%c%c","Failure!",255,255,255);
 				}
-				printf("page 2%c%c%c",255,255,255);
-				for(int i=0; i<counter; i++){
-					printf("page2.n3.val=%d%c%c%c", i, 255,255,255);
-					printf("page2.n0.val=%d%c%c%c",HugeReader[0][i],255,255,255);
-					printf("page2.n4.val=%d%c%c%c",HugeReader[1][i],255,255,255);
-					printf("page2.n5.val=%d%c%c%c",HugeReader[2][i],255,255,255);
-					// success globbity goob kinda sussy wussy but ye
-					if (HugeQueuer[3][i]){
-						printf("page2.t5.txt=%s%c%c%c","Success!",255,255,255);
-					}else{
-						printf("page2.t5.txt=%s%c%c%c","Failure!",255,255,255);
-					}
-					_delay_ms(5000); // reading delay time
-				}
+				_delay_ms(5000); // reading delay time
 			}
 		}
     }
-}
-
-uint32_t Reader(char *readBuffer){
-
-	uint32_t readValue = -1;
-	int typeExpected = 0;
-
-	for(int i = 0; i<8;i++)
-		{
-		scanf("%c", &readBuffer[i]);
-		if(readBuffer[i] == 0x71)//Expect number string
-			{
-			typeExpected = NUMBER_STRING;
-			readBuffer[0] = 0x71;//Move indicator to front, just to keep the nice format
-			break;
-			}
-		}
-		if(typeExpected == NUMBER_STRING){
-			for(int i = 1; i<8; i++){
-				scanf("%c", &readBuffer[i]);
-			}
-
-			if(readBuffer[0] == 0x71 && readBuffer[5] == 0xFF && readBuffer[6] == 0xFF && readBuffer[7] == 0xFF)//This is a complete number return
-			{
-				readValue = readBuffer[1] | (readBuffer[2] << 8) | (readBuffer[3] << 16)| (readBuffer[4] << 24);
-			}
-		}
-			
-		for(int i = 0; i<7; i++){
-			scanf("%c", &readBuffer[i]);
-			if(readBuffer[i] == 0x1A)//some error occurred - retrieve the 0xFF commands and start over
-			{
-		scanf("%c", &readBuffer[i]);
-						scanf("%c", &readBuffer[i]);
-						scanf("%c", &readBuffer[i]);
-						continue;
-					}
-			}
-		return readValue;
 }
