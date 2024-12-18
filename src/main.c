@@ -8,13 +8,11 @@
 #include <math.h>
 
 // Constants
-#define TARGET_DISTANCE 300.0  // Target distance in cm (3 meters)
-#define TARGET_TIME 50.0       // Target time in seconds
 #define WHEEL_CIRCUMFERENCE 18.85  // Wheel circumference in cm
 #define ENCODER_HOLES 15       // Number of filled holes in the encoder
-#define MIN_SPEED 245          // Minimum motor speed
+#define MIN_SPEED 50          // Minimum motor speed
 #define MAX_SPEED 255         // Maximum motor speed
-#define DEBOUNCE_TIME 1       // Debounce time in ms
+#define DEBOUNCE_TIME 50       // Debounce time in ms
 
 // Global variable to count encoder triggers
 volatile uint16_t trigger_count = 0; // How many holes the car actually went through
@@ -75,50 +73,47 @@ void motor(float target_distance, float target_time) {
     sei(); // Re-enable interrupts
 
     int total_hits = calc_holes(target_distance);
-    float hits_per_second = total_hits / target_time;
+    float elapsed_time = 0.0;
+    float time_step = 0.1; // Smaller time step for smoother updates (in seconds)
 
     int motor_speed = MAX_SPEED; // Start at maximum speed
     OCR0A = motor_speed;         // Set motor PWM initially
     OCR0B = motor_speed;
 
-    for (float t = 0; t <= target_time; t += 1) {
-        int expected_hits = (int)(hits_per_second * t);
+    while (elapsed_time <= target_time) {
         int remaining_hits = total_hits - trigger_count;
 
-        if (trigger_count < expected_hits) {
-            // Car is behind, increase speed
-            int speed_boost = (expected_hits - trigger_count) * (MAX_SPEED - MIN_SPEED) / total_hits;
-            motor_speed = MIN_SPEED + speed_boost;
-            if (motor_speed > MAX_SPEED) motor_speed = MAX_SPEED;
-        } else if (remaining_hits > 0) {
-            // Adjust speed dynamically as we approach the target
-            motor_speed = (int)((float)remaining_hits / total_hits * (MAX_SPEED - MIN_SPEED)) + MIN_SPEED;
-        } else {
-            motor_speed = 0; // Stop motor
-        }
+        // Time-based cubic deceleration
+        float progress = elapsed_time / target_time; // Progress from 0 to 1 based on time
+        motor_speed = MIN_SPEED + (int)((1.0 - pow(progress, 3)) * (MAX_SPEED - MIN_SPEED));
+        if (motor_speed > MAX_SPEED) motor_speed = MAX_SPEED; // Cap at max speed
 
         motor_speed = motor_speed < MIN_SPEED ? MIN_SPEED : motor_speed;
 
         OCR0A = motor_speed;
         OCR0B = motor_speed;
 
-        printf("Time: %.1f s, Target Hits: %d, Triggered Hits: %d, Remaining Hits: %d, PWM: %d\n",
-               t, expected_hits, trigger_count, remaining_hits, motor_speed);
+        // Print debug info: elapsed time, triggered hits, remaining hits, motor speed
+        printf("Time: %.1f s, Triggered Hits: %d, Remaining Hits: %d, PWM: %d\n",
+               elapsed_time, trigger_count, remaining_hits, motor_speed);
 
+        // Stop if the car reaches the target distance before time is up
         if (trigger_count >= total_hits) {
             OCR0A = 0;
-            OCR0B = 0; // Stop the motor
-            printf("Target distance reached.\n");
+            OCR0B = 0;
+            printf("Target distance reached at %.1f s.\n", elapsed_time);
             break;
         }
 
-        _delay_ms(1000);
+        _delay_ms((int)(time_step * 1000)); // Delay in milliseconds
+        elapsed_time += time_step;         // Increment elapsed time
     }
 
+    // Ensure the motor stops after the loop
     OCR0A = 0;
     OCR0B = 0;
 
-    printf("Drive complete.\n");
+    printf("Drive complete. Total Time: %.1f s\n", elapsed_time);
 }
 
 int main(void) {
