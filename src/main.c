@@ -1,92 +1,147 @@
-#define F_CPU 16000000UL //needs to be defined for the delay functions to work.
+#define F_CPU 16000000UL // Needs to be defined for the delay functions to work.
 #define BAUD 9600
-#define NUMBER_STRING 1001
 #include <avr/io.h>
-#include <string.h>
-#include <stdlib.h>
 #include <stdio.h>
-#include <util/delay.h> //here the delay functions are found
-#include "usart.h"
+#include <util/delay.h>
 #include <avr/interrupt.h>
-int main(void)
-{
-	
-	char readBuffer[100];
-	uart_init();//initialize communication with PC - debugging
-	io_redirect();//redirect printf function to uart, so text will be shown on PC
-	//opto code
-	TCCR1B = ( 1<< ICNC1) | (1 << ICES1) | (1 << CS12) | ( 1 << CS10);
-	TCCR1A= 0x00;
-	TCCR1B= 0xC5;
-	DDRB &= ~0x01;
-	PORTB |= 0x01;
-	//
+#include "usart.h"
+#include <math.h>
 
-	DDRB |= (1 <<PB1);
-	PORTB |= (1 << PB1);
-	DDRB |= (1 <<PB2);
-	PORTB |= (1 << PB2);
-	DDRB &= ~(1 <<PB4);
-	PORTB &= ~(1 << PB4);
-	
-	DDRD |= (1 << PD6); // sets PD6 as an output pin
-	DDRD |= (1 << PD5); //sets PD5 as an output pin
-	TCCR0A |= 0xA3; // sets fast pwn non inverting mode on Oc0A (which is for PD6) and Oc0B (which is for PD5)
-	TCCR0B |= 0x05; // sets prescaler to 1024 for Timer0
-	OCR0A = 0;  
-    OCR0B = 0; 
-	printf("page 0%c%c%c",255,255,255);//init at 9600 baud.
-	_delay_ms(20);
-	uint32_t readValue = 1;
-    while (1) 
-    {
-		//opto code
-		if (PINB & (1 << PB0)){
-			printf("page0.va1.val=%d%c%c%c", 1, 255,255,255);
-		}
-		//printf("get %s.val%c%c%c","page0.n0",255,255,255);	//sends "get page0.n0.val"	
-		int typeExpected = 0;
-	
-			for(int i = 0; i<8;i++)
-			{
-				scanf("%c", &readBuffer[i]);
-				if(readBuffer[i] == 0x71)//Expect number string
-				{
-					typeExpected = NUMBER_STRING;
-					readBuffer[0] = 0x71;//Move indicator to front, just to keep the nice format
-					break;
-				}
-			}
-			if(typeExpected == NUMBER_STRING)
-			{
-				for(int i = 1; i<8; i++)
-				{
-					scanf("%c", &readBuffer[i]);
-				}
+// Constants
+#define TARGET_DISTANCE 300.0  // Target distance in cm (3 meters)
+#define TARGET_TIME 50.0       // Target time in seconds
+#define WHEEL_CIRCUMFERENCE 18.85  // Wheel circumference in cm
+#define ENCODER_HOLES 15       // Number of filled holes in the encoder
+#define MIN_SPEED 245          // Minimum motor speed
+#define MAX_SPEED 255         // Maximum motor speed
+#define DEBOUNCE_TIME 1       // Debounce time in ms
 
-				if(readBuffer[0] == 0x71 && readBuffer[5] == 0xFF && readBuffer[6] == 0xFF && readBuffer[7] == 0xFF)//This is a complete number return
-				{
-					readValue = readBuffer[1] | (readBuffer[2] << 8) | (readBuffer[3] << 16)| (readBuffer[4] << 24);
-				}
-			}
-		
-		for(int i = 0; i<7; i++)
-		{
-				scanf("%c", &readBuffer[i]);
-				if(readBuffer[i] == 0x1A)//some error occurred - retrieve the 0xFF commands and start over
-				{
-					scanf("%c", &readBuffer[i]);
-					scanf("%c", &readBuffer[i]);
-					scanf("%c", &readBuffer[i]);
-					continue;
-				}
-		}		
-		//printf("page0.n0.val=%d%c%c%c", 2*(int)readValue, 255,255,255);
-		// opto code
-		// add some alogrithim here cause the speed can't be 255m/s with octo
-		OCR0A = (int)readValue;
-		OCR0B = (int)readValue;
-		//_delay_ms(100);
-		_delay_ms(1);		
+// Global variable to count encoder triggers
+volatile uint16_t trigger_count = 0; // How many holes the car actually went through
+int time = 0;                        // Time for the car to move
+float distance = 0;                  // Distance the car should go
+volatile uint8_t last_state = 0;
+volatile uint32_t last_debounce_time = 0;
+
+// Function prototypes
+void setup_encoder(void);
+void timer1_init(void);
+void setup_motor(void);
+int calc_holes(float target_distance);
+void motor(float target_distance, float target_time);
+
+ISR(PCINT0_vect) {
+    uint8_t current_state = (PINB & (1 << PB0)) ? 1 : 0;
+    uint32_t current_time = (TCNT1 * (1024.0 / F_CPU) * 1000.0);
+
+    if (current_time - last_debounce_time > DEBOUNCE_TIME) {
+        if (current_state != last_state) {
+            last_state = current_state;
+            if (current_state) {
+                trigger_count++;
+            }
+            last_debounce_time = current_time;
+        }
     }
+}
+
+void timer1_init(void) {
+    TCCR1B |= (1 << CS12) | (1 << CS10); // Prescaler 1024
+    TCNT1 = 0;                          // Start counting from 0
+}
+
+void setup_motor(void) {
+    DDRD |= (1 << PD6); // PD6 (OC0A)
+    DDRD |= (1 << PD5); // PD5 (OC0B)
+
+    TCCR0A |= 0xA3; // Fast PWM, non-inverting mode
+    TCCR0B |= 0x05; // Prescaler 1024 for Timer0
+}
+
+void setup_encoder(void) {
+    DDRB &= ~(1 << PB0); // Set PB0 as input
+    PORTB |= (1 << PB0); // Enable pull-up resistor on PB0
+    PCICR |= (1 << PCIE0); // Enable Pin Change Interrupt Control for PCINT0-7
+    PCMSK0 |= (1 << PCINT0); // Enable interrupt for PCINT0 (PB0)
+}
+
+int calc_holes(float target_distance) {
+    return (int)((target_distance / WHEEL_CIRCUMFERENCE) * ENCODER_HOLES);
+}
+
+void motor(float target_distance, float target_time) {
+    cli(); // Disable interrupts temporarily
+    trigger_count = 0;
+    sei(); // Re-enable interrupts
+
+    int total_hits = calc_holes(target_distance);
+    float hits_per_second = total_hits / target_time;
+
+    int motor_speed = MAX_SPEED; // Start at maximum speed
+    OCR0A = motor_speed;         // Set motor PWM initially
+    OCR0B = motor_speed;
+
+    for (float t = 0; t <= target_time; t += 1) {
+        int expected_hits = (int)(hits_per_second * t);
+        int remaining_hits = total_hits - trigger_count;
+
+        if (trigger_count < expected_hits) {
+            // Car is behind, increase speed
+            int speed_boost = (expected_hits - trigger_count) * (MAX_SPEED - MIN_SPEED) / total_hits;
+            motor_speed = MIN_SPEED + speed_boost;
+            if (motor_speed > MAX_SPEED) motor_speed = MAX_SPEED;
+        } else if (remaining_hits > 0) {
+            // Adjust speed dynamically as we approach the target
+            motor_speed = (int)((float)remaining_hits / total_hits * (MAX_SPEED - MIN_SPEED)) + MIN_SPEED;
+        } else {
+            motor_speed = 0; // Stop motor
+        }
+
+        motor_speed = motor_speed < MIN_SPEED ? MIN_SPEED : motor_speed;
+
+        OCR0A = motor_speed;
+        OCR0B = motor_speed;
+
+        printf("Time: %.1f s, Target Hits: %d, Triggered Hits: %d, Remaining Hits: %d, PWM: %d\n",
+               t, expected_hits, trigger_count, remaining_hits, motor_speed);
+
+        if (trigger_count >= total_hits) {
+            OCR0A = 0;
+            OCR0B = 0; // Stop the motor
+            printf("Target distance reached.\n");
+            break;
+        }
+
+        _delay_ms(1000);
+    }
+
+    OCR0A = 0;
+    OCR0B = 0;
+
+    printf("Drive complete.\n");
+}
+
+int main(void) {
+    uart_init();
+    io_redirect();
+    cli();
+
+    printf("System Initialized\n");
+
+    setup_encoder();
+    timer1_init();
+    setup_motor();
+
+    while (1) {
+        printf("Enter time in seconds: ");
+        scanf("%d", &time);
+        printf("Enter distance in cm: ");
+        scanf("%f", &distance);
+
+        sei(); // Enable global interrupts
+
+        motor(distance, time);
+    }
+
+    return 0;
 }
