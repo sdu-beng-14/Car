@@ -8,11 +8,11 @@
 #include <math.h>
 
 // Constants
-#define WHEEL_CIRCUMFERENCE 18.85  // Wheel circumference in cm
+#define WHEEL_CIRCUMFERENCE 19.4  // Updated for 62.5 mm diameter wheels
 #define ENCODER_HOLES 15       // Number of filled holes in the encoder
-#define MIN_SPEED 50          // Minimum motor speed
-#define MAX_SPEED 255         // Maximum motor speed
-#define DEBOUNCE_TIME 50       // Debounce time in ms
+#define MIN_SPEED 15          // Minimum motor speed
+#define MAX_SPEED 50         // Maximum motor speed
+#define DEBOUNCE_TIME 10       // Debounce time in ms
 
 // Global variable to count encoder triggers
 volatile uint16_t trigger_count = 0; // How many holes the car actually went through
@@ -72,49 +72,57 @@ void motor(float target_distance, float target_time) {
     trigger_count = 0;
     sei(); // Re-enable interrupts
 
-    int total_hits = calc_holes(target_distance);
     float elapsed_time = 0.0;
     float time_step = 0.1; // Smaller time step for smoother updates (in seconds)
+    float distance_per_tick = WHEEL_CIRCUMFERENCE / ENCODER_HOLES;
 
-    int motor_speed = MAX_SPEED; // Start at maximum speed
-    OCR0A = motor_speed;         // Set motor PWM initially
-    OCR0B = motor_speed;
+    while (elapsed_time < target_time) {
+        // Calculate current progress
+        float current_distance = trigger_count * distance_per_tick;
+        float remaining_distance = target_distance - current_distance;
+        float remaining_time = target_time - elapsed_time;
 
-    while (elapsed_time <= target_time) {
-        int remaining_hits = total_hits - trigger_count;
-
-        // Time-based cubic deceleration
-        float progress = elapsed_time / target_time; // Progress from 0 to 1 based on time
-        motor_speed = MIN_SPEED + (int)((1.0 - pow(progress, 3)) * (MAX_SPEED - MIN_SPEED));
-        if (motor_speed > MAX_SPEED) motor_speed = MAX_SPEED; // Cap at max speed
-
-        motor_speed = motor_speed < MIN_SPEED ? MIN_SPEED : motor_speed;
-
-        OCR0A = motor_speed;
-        OCR0B = motor_speed;
-
-        // Print debug info: elapsed time, triggered hits, remaining hits, motor speed
-        printf("Time: %.1f s, Triggered Hits: %d, Remaining Hits: %d, PWM: %d\n",
-               elapsed_time, trigger_count, remaining_hits, motor_speed);
-
-        // Stop if the car reaches the target distance before time is up
-        if (trigger_count >= total_hits) {
-            OCR0A = 0;
-            OCR0B = 0;
-            printf("Target distance reached at %.1f s.\n", elapsed_time);
+        // Stop if the target distance is reached
+        if (remaining_distance <= 0 || remaining_time <= 0) {
             break;
         }
 
-        _delay_ms((int)(time_step * 1000)); // Delay in milliseconds
-        elapsed_time += time_step;         // Increment elapsed time
+        // Calculate expected progress
+        float expected_distance = (elapsed_time / target_time) * target_distance;
+        float progress_error = expected_distance - current_distance; // Positive if behind, negative if ahead
+
+        // Proportional control for speed adjustment
+        int base_speed = (remaining_distance / remaining_time) / (WHEEL_CIRCUMFERENCE / (ENCODER_HOLES * 255));
+
+        // Aggressive deceleration logic
+        float deceleration_factor = (remaining_distance < (target_distance * 0.3)) ? 2.0 : 1.0; // Steeper deceleration near the end
+        int correction = (int)(progress_error * 5.0 * deceleration_factor); // Adjust proportional constant as needed
+        int motor_speed = base_speed + correction;
+
+        // Ensure motor speed stays within bounds
+        if (motor_speed > MAX_SPEED) motor_speed = MAX_SPEED;
+        if (motor_speed < MIN_SPEED) motor_speed = MIN_SPEED;
+
+        // Update motor PWM
+        OCR0A = motor_speed;
+        OCR0B = motor_speed;
+
+        // Print debug info
+        printf("Time: %.1f s, Current Distance: %.2f cm, Remaining Distance: %.2f cm, Speed: %d PWM\n",
+               elapsed_time, current_distance, remaining_distance, motor_speed);
+
+        // Delay and update elapsed time
+        _delay_ms((int)(time_step * 1000));
+        elapsed_time += time_step;
     }
 
-    // Ensure the motor stops after the loop
+    // Stop the motor after loop completion
     OCR0A = 0;
     OCR0B = 0;
-
-    printf("Drive complete. Total Time: %.1f s\n", elapsed_time);
+    printf("Target reached. Total Time: %.1f s, Total Distance: %.2f cm\n", elapsed_time, target_distance);
 }
+
+
 
 int main(void) {
     uart_init();
