@@ -142,8 +142,7 @@ int main(void) {
     io_redirect();
     cli();
 
-    printf("System Initialized\n");
-
+    printf("page 0%c%c%c",255,255,255);
     setup_encoder();
     timer1_init();
     setup_motor();
