@@ -1,6 +1,8 @@
-#define F_CPU 16000000UL // Needs to be defined for the delay functions to work.
+#define F_CPU 16000000UL //needs to be defined for the delay functions to work.
 #define BAUD 9600
 #include <avr/io.h>
+#include <string.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <util/delay.h>
 #include <avr/interrupt.h>
@@ -8,6 +10,7 @@
 #include <math.h>
 
 // Constants
+#define NUMBER_STRING 1001
 #define WHEEL_CIRCUMFERENCE 19.635  // Updated for 62.5 mm diameter wheels
 #define ENCODER_HOLES 15       // Number of filled holes in the encoder
 #define MIN_SPEED 30          // Minimum motor speed
@@ -20,6 +23,8 @@ int time = 0;                        // Time for the car to move
 float distance = 0;                  // Distance the car should go
 volatile uint8_t last_state = 0;
 volatile uint32_t last_debounce_time = 0;
+char readBuffer[100];
+uint32_t readValue = 0;
 
 // Function prototypes
 void setup_encoder(void);
@@ -110,19 +115,36 @@ void motor(float target_distance, float target_time) {
         OCR0B = motor_speed;
 
         // Print debug info
-        printf("Time: %.1f s, Current Distance: %.2f cm, Remaining Distance: %.2f cm, Speed: %d PWM\n",
-               elapsed_time, current_distance, remaining_distance, motor_speed);
+        printf("Time: %.1f s, Current Distance: %.2f cm, Remaining Distance: %.2f cm, Speed: %d PWM\n", elapsed_time, current_distance, remaining_distance, motor_speed);
 
+
+        //info to nextion
+        printf("page1.TimeElapsed.val=%d%c%c%c",(int)elapsed_time,255,255,255);
+        printf("page1.DistanceT.val=%d%c%c%c",(int)current_distance,255,255,255);
+        printf("page1.n0.val=%d%c%c%c",(int)remaining_distance,255,255,255);
+        printf("page1.n5.val=%d%c%c%c",motor_speed,255,255,255);        
         // Delay and update elapsed time
-        _delay_ms(time_step * 100);
+
+        _delay_ms((int)(time_step * 150));
         elapsed_time += time_step;
+        printf("page1.n4.val=page1.n4.val-%d%c%c%c",1,255,255,255);
     }
 
     // Stop the motor after loop completion
     OCR0A = 0;
     OCR0B = 0;
-    printf("Target reached. Total Time: %.1f s, Total Distance: %.2f cm\n", elapsed_time, target_distance);
+    //printf("Target reached. Total Time: %.1f s, Total Distance: %.2f cm\n", elapsed_time, target_distance);
+    printf("page 2%c%c%c",255,255,255);
+    printf("page2.n3.val=page2.n3.val+%d%c%c%c",1,255,255,255);
+    printf("page2.n0.val=%d%c%c%c",(int)target_distance,255,255,255);
+    printf("page2.n4.val=%d%c%c%c",(int)elapsed_time,255,255,255);
+    time=0;
+    distance=0;
+    _delay_ms(5000);
+    printf("page 1%c%c%c",255,255,255);
+    printf("page1.Setup.en=%d%c%c%c",1,255,255,255);
 }
+
 
 
 
@@ -137,16 +159,59 @@ int main(void) {
     timer1_init();
     setup_motor();
 
-    while (1) {
-        printf("Enter time in seconds: ");
-        scanf("%d", &time);
-        printf("Enter distance in cm: ");
-        scanf("%f", &distance);
+   while (1) {
+        int typeExpected = 0;
+	
+			for(int i = 0; i<8;i++)
+			{
+				scanf("%c", &readBuffer[i]);
+				if(readBuffer[i] == 0x71)//Expect number string
+				{
+					typeExpected = NUMBER_STRING;
+					readBuffer[0] = 0x71;//Move indicator to front, just to keep the nice format
+					break;
+				}
+			}
+			if(typeExpected == NUMBER_STRING)
+			{
+				for(int i = 1; i<8; i++)
+				{
+					scanf("%c", &readBuffer[i]);
+				}
 
+				if(readBuffer[0] == 0x71 && readBuffer[5] == 0xFF && readBuffer[6] == 0xFF && readBuffer[7] == 0xFF)//This is a complete number return
+				{
+					readValue = readBuffer[1] | (readBuffer[2] << 8) | (readBuffer[3] << 16)| (readBuffer[4] << 24);
+				}
+			}
+		
+		for(int i = 0; i<7; i++)
+		{
+				scanf("%c", &readBuffer[i]);
+				if(readBuffer[i] == 0x1A)//some error occurred - retrieve the 0xFF commands and start over
+				{
+					scanf("%c", &readBuffer[i]);
+					scanf("%c", &readBuffer[i]);
+					scanf("%c", &readBuffer[i]);
+					continue;
+				}
+		}
+        
+        //printf("Enter time in seconds: ");
+        if((int)readValue%2){
+            time=((int)readValue-1)/2;
+        }else{
+            distance=(int)readValue/2;
+        }
+        //scanf("%d", &time);
+        //printf("Enter distance in cm: ");
+        //scanf("%f", &distance);
+        if(time!=0 && distance!=0){
         sei(); // Enable global interrupts
 
-        motor(distance, time);
+        motor(distance, time);   
+        }
     }
-
     return 0;
 }
+    
