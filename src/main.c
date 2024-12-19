@@ -8,10 +8,10 @@
 #include <math.h>
 
 // Constants
-#define WHEEL_CIRCUMFERENCE 19.4  // Updated for 62.5 mm diameter wheels
+#define WHEEL_CIRCUMFERENCE 19.635  // Updated for 62.5 mm diameter wheels
 #define ENCODER_HOLES 15       // Number of filled holes in the encoder
-#define MIN_SPEED 15          // Minimum motor speed
-#define MAX_SPEED 50         // Maximum motor speed
+#define MIN_SPEED 30          // Minimum motor speed
+#define MAX_SPEED 100         // Maximum motor speed
 #define DEBOUNCE_TIME 10       // Debounce time in ms
 
 // Global variable to count encoder triggers
@@ -49,12 +49,14 @@ void timer1_init(void) {
 }
 
 void setup_motor(void) {
-    DDRD |= (1 << PD6); // PD6 (OC0A)
-    DDRD |= (1 << PD5); // PD5 (OC0B)
+    DDRD |= (1 << PD6); // Set PD6 (OC0A) as output
+    DDRD |= (1 << PD5); // Set PD5 (OC0B) as output
 
-    TCCR0A |= 0xA3; // Fast PWM, non-inverting mode
-    TCCR0B |= 0x05; // Prescaler 1024 for Timer0
+    // Configure Timer0 for Fast PWM, non-inverting mode
+    TCCR0A = (1 << WGM00) | (1 << WGM01) | (1 << COM0A1) | (1 << COM0B1);
+    TCCR0B = (1 << CS02) | (1 << CS00); // Prescaler set to 1024
 }
+
 
 void setup_encoder(void) {
     DDRB &= ~(1 << PB0); // Set PB0 as input
@@ -112,7 +114,7 @@ void motor(float target_distance, float target_time) {
                elapsed_time, current_distance, remaining_distance, motor_speed);
 
         // Delay and update elapsed time
-        _delay_ms((int)(time_step * 1000));
+        _delay_ms((int)(time_step * 150));
         elapsed_time += time_step;
     }
 
