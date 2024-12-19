@@ -114,7 +114,7 @@ void motor(float target_distance, float target_time) {
                elapsed_time, current_distance, remaining_distance, motor_speed);
 
         // Delay and update elapsed time
-        _delay_ms((int)(time_step * 150));
+        _delay_ms((int)(time_step * 150)); 
         elapsed_time += time_step;
     }
 
