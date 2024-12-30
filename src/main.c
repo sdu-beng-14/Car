@@ -182,14 +182,18 @@ int main(void) {
         // Input first set of values
         printf("Enter time in seconds (set 1): ");
         scanf("%d", &time);
+        printf("%d\n", time);
         printf("Enter distance in cm (set 1): ");
         scanf("%f", &distance);
+        printf("%d\n",distance);
 
         // Input second set of values
         printf("Enter time in seconds (set 2): ");
         scanf("%d", &time2);
+        printf("%d\n",time2);
         printf("Enter distance in cm (set 2): ");
         scanf("%f", &distance2);
+        printf("%d\n",distance2);
 
         sei(); // Enable global interrupts
 
