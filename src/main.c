@@ -11,7 +11,7 @@
 #define WHEEL_CIRCUMFERENCE 19.635  // Updated for 62.5 mm diameter wheels
 #define ENCODER_HOLES 15       // Number of filled holes in the encoder
 #define MIN_SPEED 30          // Minimum motor speed
-#define MAX_SPEED 100         // Maximum motor speed
+#define MAX_SPEED 100         // Maximum motor speed (could go faster but we limited so it isnt too fast)
 #define DEBOUNCE_TIME 10       // Debounce time in ms
 
 // Global variable to count encoder triggers
