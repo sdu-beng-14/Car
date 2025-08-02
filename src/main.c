@@ -14,6 +14,7 @@
 #define MAX_SPEED 100         // Maximum motor speed
 #define DEBOUNCE_TIME 10       // Debounce time in ms
 
+// test for kili
 // Global variable to count encoder triggers
 volatile uint16_t trigger_count = 0; // How many holes the car actually went through
 int time = 0;                        // Time for the car to move
